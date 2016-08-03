@@ -51,7 +51,7 @@ class BaseS3Uploader(object):
         }
         if content_type:
             kwargs['ContentType'] = content_type
-        self.bucket.Object(filepath).put(Body=upload_file, **kwargs)
+        self.bucket.Object(filepath).put(**kwargs)
 
     def clear_key(self, filepath):
         '''Deletes the contents of the key at `filepath` on `self.bucket`.'''
