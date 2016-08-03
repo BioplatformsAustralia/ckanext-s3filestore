@@ -60,6 +60,14 @@ class BaseS3Uploader(object):
             else:
                 raise
 
+        # try to avoid 'connection reset by peer' errors when pushing
+        # larger files to s3. solution taken from:
+        # https://github.com/boto/boto/issues/2207#issuecomment-60682869
+        bucket_location = bucket.get_location()
+        if bucket_location:
+            S3_region_conn = boto.s3.connect_to_region(bucket_location)
+            bucket = S3_region_conn.get_bucket(bucket_name)
+
         return bucket
 
     def upload_to_key(self, filepath, upload_file, make_public=False):
