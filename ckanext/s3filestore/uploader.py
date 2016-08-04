@@ -46,12 +46,11 @@ class BaseS3Uploader(object):
         '''Uploads the `upload_file` to `filepath` on `self.bucket`.'''
         upload_file.seek(0)
         content_type, x = mimetypes.guess_type(filepath)
-        kwargs = {
-            'Body': upload_file
-        }
+        extra_args = {}
         if content_type:
-            kwargs['ContentType'] = content_type
-        self.bucket.Object(filepath).put(**kwargs)
+            extra_args['ContentType'] = content_type
+        # streaming, parallel, multi-part upload
+        self.bucket.upload_fileobj(upload_file, filepath, ExtraArgs=extra_args)
 
     def clear_key(self, filepath):
         '''Deletes the contents of the key at `filepath` on `self.bucket`.'''
