@@ -32,9 +32,9 @@ class S3FileApp(DataApp):
 
     def update(self, force=False):
         self.s3_object.load()
-        self.last_modified = time.mktime(self.obj.last_modified.timetuple())
-        self.content_length = self.obj.content_length
-        self.content_encoding = self.obj.content_encoding
+        self.last_modified = time.mktime(self.s3_object.last_modified.timetuple())
+        self.content_length = self.s3_object.content_length
+        self.content_encoding = self.s3_object.content_encoding
 
     def get(self, environ, start_response):
         is_head = environ['REQUEST_METHOD'].upper() == 'HEAD'
@@ -51,7 +51,7 @@ class S3FileApp(DataApp):
         (lower, content_length) = retval
         if is_head:
             return [b'']
-        return self.obj.get(Range="bytes=%d-%d" % (lower, content_length))
+        return self.s3_object.get(Range="bytes=%d-%d" % (lower, content_length))
 
 
 class _S3ResponseIter(object):
