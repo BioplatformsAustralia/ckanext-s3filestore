@@ -10,7 +10,7 @@ import ckan.lib.base as base
 import ckan.model as model
 import ckan.lib.uploader as uploader
 from ckan.common import _, request, c, response
-from s3fileapp import S3FileApp
+from .s3fileapp import S3FileApp
 
 from ckanext.s3filestore.uploader import S3Uploader
 
