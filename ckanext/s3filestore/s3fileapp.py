@@ -51,7 +51,9 @@ class S3FileApp(DataApp):
         (lower, content_length) = retval
         if is_head:
             return [b'']
-        return self.s3_object.get(Range="bytes=%d-%d" % (lower, content_length))
+        return _S3ResponseIter(
+            self.s3_object.get(
+                Range="bytes=%d-%d" % (lower, content_length)))
 
 
 class _S3ResponseIter(object):
