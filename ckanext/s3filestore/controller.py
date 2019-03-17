@@ -14,6 +14,8 @@ from botocore.exceptions import ClientError
 from ckanext.s3filestore.uploader import S3Uploader
 import webob
 
+from .s3fileapp import S3FileApp
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -61,13 +63,26 @@ class S3Controller(base.BaseController):
             try:
                 # Small workaround to manage downloading of large files
                 # We are using redirect to minio's resource public URL
-                s3 = upload.get_s3_session()
-                client = s3.client(service_name='s3', endpoint_url=host_name)
-                url = client.generate_presigned_url(ClientMethod='get_object',
-                                                    Params={'Bucket': bucket.name,
-                                                            'Key': key_path},
-                                                    ExpiresIn=60)
-                redirect(url)
+                # s3 = upload.get_s3_session()
+                # client = s3.client(service_name='s3', endpoint_url=host_name)
+                # url = client.generate_presigned_url(ClientMethod='get_object',
+                #                                     Params={'Bucket': bucket.name,
+                #                                             'Key': key_path},
+                #                                     ExpiresIn=60)
+                # redirect(url)
+                key.load()
+
+                extra_headers = []
+                content_type, x = mimetypes.guess_type(rsc.get('url', ''))
+                if content_type:
+                    extra_headers.append(('Content-Type', content_type))
+                s3app = S3FileApp(key, headers=extra_headers)
+                return s3app(request.environ, self.start_response)
+
+                if 'url' not in rsc:
+                    abort(404, _('No download is available'))
+
+                redirect(str(rsc['url']))
 
             except ClientError as ex:
                 if ex.response['Error']['Code'] == 'NoSuchKey':
@@ -141,7 +156,7 @@ class S3Controller(base.BaseController):
         #     .format(bucket_name=config.get('ckanext.s3filestore.aws_bucket_name'),
         #             filepath=filepath)
         redirect_url = '{host_name}/{bucket_name}/{filepath}'\
-                          .format(bucket_name=config.get('ckanext.s3filestore.aws_bucket_name'),
-                          filepath=filepath,
-                          host_name=host_name)
+            .format(bucket_name=config.get('ckanext.s3filestore.aws_bucket_name'),
+                    filepath=filepath,
+                    host_name=host_name)
         redirect(redirect_url)

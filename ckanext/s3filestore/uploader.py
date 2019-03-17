@@ -62,7 +62,7 @@ class BaseS3Uploader(object):
 
         s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
                                             config=botocore.client.Config(
-                                             signature_version=self.signature))
+                                                signature_version=self.signature))
         bucket = s3.Bucket(bucket_name)
         try:
             if s3.Bucket(bucket.name) in s3.buckets.all():
@@ -122,10 +122,10 @@ class BaseS3Uploader(object):
     def clear_key(self, filepath):
         '''Deletes the contents of the key at `filepath` on `self.bucket`.'''
         session = boto3.session.Session(aws_access_key_id=self.p_key,
-                                    aws_secret_access_key=self.s_key,
-                                    region_name=self.region)
+                                        aws_secret_access_key=self.s_key,
+                                        region_name=self.region)
         s3 = session.resource('s3', endpoint_url=self.host_name, config=botocore.client.Config(
-                             signature_version=self.signature))
+            signature_version=self.signature))
         try:
             s3.Object(self.bucket_name, filepath).delete()
         except Exception as e:
