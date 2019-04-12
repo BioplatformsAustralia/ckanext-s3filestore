@@ -1,4 +1,5 @@
-from setuptools import setup, find_packages  # Always prefer setuptools over distutils
+# Always prefer setuptools over distutils
+from setuptools import setup, find_packages
 from codecs import open  # To use a consistent encoding
 from os import path
 
@@ -52,7 +53,7 @@ setup(
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
+    packages=['ckanext.s3filestore'],
 
     # List run-time dependencies here.  These will be installed by pip when your
     # project is installed. For an analysis of "install_requires" vs pip's
