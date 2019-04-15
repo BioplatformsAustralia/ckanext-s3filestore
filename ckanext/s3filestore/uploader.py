@@ -113,9 +113,16 @@ class BaseS3Uploader(object):
         s3 = session.resource('s3', endpoint_url=self.host_name,
                               config=botocore.client.Config(signature_version=self.signature))
         try:
-            s3.Object(self.bucket_name, filepath).put(
-                Body=upload_file.read(), ACL='public-read',
-                ContentType=getattr(self, 'mimetype', None))
+            # s3.Object(self.bucket_name, filepath).put(
+            #     Body=upload_file.read(), ACL='public-read',
+            #     ContentType=getattr(self, 'mimetype', None))
+            
+            extra_args = {}
+            extra_args['ACL'] = 'public-read'
+            extra_args['ContentType'] = getattr(self, 'mimetype', None)
+            # streaming, parallel, multi-part upload
+            s3.Object(self.bucket_name, filepath).upload_fileobj(upload_file, filepath, ExtraArgs=extra_args)
+
             log.info("Succesfully uploaded {0} to S3!".format(filepath))
         except Exception as e:
             log.error('Something went very very wrong for {0}'.format(str(e)))
