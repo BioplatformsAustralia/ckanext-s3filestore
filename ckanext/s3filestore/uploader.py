@@ -63,7 +63,7 @@ class BaseS3Uploader(object):
 
         s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
                                             config=botocore.client.Config(
-                                             signature_version=self.signature))
+                                                signature_version=self.signature))
         bucket = s3.Bucket(bucket_name)
         try:
             if s3.Bucket(bucket.name) in s3.buckets.all():
@@ -113,15 +113,12 @@ class BaseS3Uploader(object):
         s3 = session.resource('s3', endpoint_url=self.host_name,
                               config=botocore.client.Config(signature_version=self.signature))
         try:
-            # s3.Object(self.bucket_name, filepath).put(
-            #     Body=upload_file.read(), ACL='public-read',
-            #     ContentType=getattr(self, 'mimetype', None))
-            
+            # streaming, parallel, multi-part upload
             extra_args = {}
             extra_args['ACL'] = 'public-read'
             extra_args['ContentType'] = getattr(self, 'mimetype', None)
-            # streaming, parallel, multi-part upload
-            s3.Object(self.bucket_name, filepath).upload_fileobj(upload_file, filepath, ExtraArgs=extra_args)
+            self.bucket.upload_fileobj(
+                upload_file, filepath, ExtraArgs=extra_args)
 
             log.info("Succesfully uploaded {0} to S3!".format(filepath))
         except Exception as e:
@@ -131,10 +128,10 @@ class BaseS3Uploader(object):
     def clear_key(self, filepath):
         '''Deletes the contents of the key at `filepath` on `self.bucket`.'''
         session = boto3.session.Session(aws_access_key_id=self.p_key,
-                                    aws_secret_access_key=self.s_key,
-                                    region_name=self.region)
+                                        aws_secret_access_key=self.s_key,
+                                        region_name=self.region)
         s3 = session.resource('s3', endpoint_url=self.host_name, config=botocore.client.Config(
-                             signature_version=self.signature))
+            signature_version=self.signature))
         try:
             s3.Object(self.bucket_name, filepath).delete()
         except Exception as e:
@@ -260,7 +257,8 @@ class S3ResourceUploader(BaseS3Uploader):
             self.mimetype = resource.get('mimetype')
             if not self.mimetype:
                 try:
-                    self.mimetype = resource['mimetype'] = mimetypes.guess_type(self.filename, strict=False)[0]
+                    self.mimetype = resource['mimetype'] = mimetypes.guess_type(
+                        self.filename, strict=False)[0]
                 except Exception:
                     pass
             self.upload_file = _get_underlying_file(upload_field_storage)
