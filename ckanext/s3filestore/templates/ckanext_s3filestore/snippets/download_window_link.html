@@ -1,0 +1,8 @@
+{% set url = h.add_url_param(controller='ckanext.s3filestore.controller:S3Controller',
+action='download_window', extras={'id': id, 'resource_id': resource_id}, new_params=request.params) %}
+<li>
+    <a class="resource-url-analytics" target="_blank" href="{{ url }}">
+        <i class="fa fa-hourglass-start"></i>
+        Open Download Window
+    </a>
+</li>

@@ -63,7 +63,9 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
             m.connect('resource_download',
                       '/dataset/{id}/resource/{resource_id}/download/{filename}',
                       action='resource_download')
-
+            m.connect('download_window',
+                      '/dataset/{id}/resource/{resource_id}/downloadwindow',
+                      action='download_window')
             # fallback controller action to download from the filesystem
             m.connect('filesystem_resource_download',
                       '/dataset/{id}/resource/{resource_id}/fs_download/{filename}',

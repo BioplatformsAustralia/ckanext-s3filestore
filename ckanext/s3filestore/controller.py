@@ -15,6 +15,7 @@ from ckanext.s3filestore.uploader import S3Uploader
 import webob
 
 import logging
+
 log = logging.getLogger(__name__)
 
 NotFound = logic.NotFound
@@ -25,6 +26,70 @@ redirect = toolkit.redirect_to
 
 
 class S3Controller(base.BaseController):
+    # TODO: refactored borrowed logic into new methods: once updates are in PROD and stable consider using new
+    #  methods for other functions here
+    def download_window(self, id, resource_id, filename=None):
+        print("testing download window...")
+        rsc = self.get_authorised_resource(id, resource_id)
+
+        if rsc.get('url_type') == 'upload':
+            bucket, host_name, key_path, upload = self.get_s3_details(filename, rsc)
+
+            try:
+                # Small workaround to manage downloading of large files
+                # We are using redirect to minio's resource public URL
+                # Open 30 min window
+                url = self.sign_and_return_s3_get(bucket, host_name, key_path, upload, 1800)
+                log.info("have signed url: {0}".format(url))
+
+            except ClientError as ex:
+                log.info('No filesystem fallback are available in this route for resource {0}'
+                         .format(resource_id))
+                if ex.response['Error']['Code'] == 'NoSuchKey':
+                    abort(404, _('Resource data not found'))
+                else:
+                    raise ex
+        elif 'url' not in rsc:
+            abort(404, _('No download is available'))
+
+    def sign_and_return_s3_get(self, bucket, host_name, key_path, upload, expiryInSeconds):
+        if not expiryInSeconds:
+            expiryInSeconds = 60
+        s3 = upload.get_s3_session()
+        client = s3.client(service_name='s3', endpoint_url=host_name)
+        url = client.generate_presigned_url(ClientMethod='get_object',
+                                            Params={'Bucket': bucket.name,
+                                                    'Key': key_path},
+                                            ExpiresIn=expiryInSeconds)
+        return url
+
+    def get_s3_details(self, filename, rsc):
+        upload = uploader.get_resource_uploader(rsc)
+        bucket_name = config.get('ckanext.s3filestore.aws_bucket_name')
+        ##TODO: we put region into our hostname so not needed, unlike upstream forks. remove variable as not used
+        region = config.get('ckanext.s3filestore.region_name')
+        host_name = config.get('ckanext.s3filestore.host_name')
+        bucket = upload.get_s3_bucket(bucket_name)
+        if filename is None:
+            filename = os.path.basename(rsc['url'])
+        key_path = upload.get_path(rsc['id'], filename)
+        key = filename
+        if key is None:
+            log.warn('Key \'{0}\' not found in bucket \'{1}\''
+                     .format(key_path, bucket_name))
+        return bucket, host_name, key_path, upload
+
+    def get_authorised_resource(self, id, resource_id):
+        context = {'model': model, 'session': model.Session,
+                   'user': c.user or c.author, 'auth_user_obj': c.userobj}
+        try:
+            rsc = get_action('resource_show')(context, {'id': resource_id})
+            get_action('package_show')(context, {'id': id})
+        except NotFound:
+            abort(404, _('Resource not found'))
+        except NotAuthorized:
+            abort(401, _('Unauthorized to read resource %s') % id)
+        return rsc
 
     def resource_download(self, id, resource_id, filename=None):
         '''
@@ -136,12 +201,12 @@ class S3Controller(base.BaseController):
             host_name = host_name[:-1]
         storage_path = S3Uploader.get_storage_path(upload_to)
         filepath = os.path.join(storage_path, filename)
-        #host = config.get('ckanext.s3.filestore.hostname')
+        # host = config.get('ckanext.s3.filestore.hostname')
         # redirect_url = 'https://{bucket_name}.minio.omc.ckan.io/{filepath}' \
         #     .format(bucket_name=config.get('ckanext.s3filestore.aws_bucket_name'),
         #             filepath=filepath)
-        redirect_url = '{host_name}/{bucket_name}/{filepath}'\
-                          .format(bucket_name=config.get('ckanext.s3filestore.aws_bucket_name'),
-                          filepath=filepath,
-                          host_name=host_name)
+        redirect_url = '{host_name}/{bucket_name}/{filepath}' \
+            .format(bucket_name=config.get('ckanext.s3filestore.aws_bucket_name'),
+                    filepath=filepath,
+                    host_name=host_name)
         redirect(redirect_url)
