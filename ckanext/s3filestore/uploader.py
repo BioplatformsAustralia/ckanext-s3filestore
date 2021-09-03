@@ -51,17 +51,6 @@ class BaseS3Uploader(object):
         directory = os.path.join(storage_path, id)
         return directory
 
-    def get_s3_session_test(self):
-        return boto3.session.Session(aws_access_key_id=self.p_key,
-                                     aws_secret_access_key='hmNSyKNJI2MvwkmWDXs+xKRlBjLKxwmckPfnjrB4',
-                                     region_name=self.region)
-
-    def get_s3_bucket_strict_test(self, bucket_name):
-        s3 = self.get_s3_session_test().resource('s3', endpoint_url=self.host_name,
-                                            config=botocore.client.Config(
-                                                signature_version=self.signature))
-        return s3.Bucket(bucket_name)
-
     def get_s3_session(self):
         return boto3.session.Session(aws_access_key_id=self.p_key,
                                      aws_secret_access_key=self.s_key,

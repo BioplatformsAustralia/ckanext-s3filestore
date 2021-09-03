@@ -38,7 +38,6 @@ except ImportError:
 def download_window(context, data_dict):
     package_id = data_dict.get("package_id", False)
     resource_id = data_dict.get("resource_id", False)
-    filename = data_dict.get("resource_id", None)
     if not package_id:
         raise ckan.logic.ValidationError("Missing package_id")
     if not resource_id:
@@ -46,7 +45,7 @@ def download_window(context, data_dict):
     rsc = _get_authorised_resource(context, data_dict)
 
     if rsc.get('url_type') == 'upload':
-        bucket, host_name, key_path, upload = _get_s3_details(filename, rsc)
+        bucket, host_name, key_path, upload = _get_s3_details(rsc)
 
         try:
             # Small workaround to manage downloading of large files
@@ -82,15 +81,12 @@ def _get_authorised_resource(context, data_dict):
         abort(401, _('Unauthorized to read resource %s') % id)
 
 
-def _get_s3_details(filename, rsc):
+def _get_s3_details(rsc):
     upload = uploader.get_resource_uploader(rsc)
     bucket_name = config.get('ckanext.s3filestore.aws_bucket_name')
-    # TODO: we put region into our hostname so not needed, unlike upstream forks. remove variable as not used
-    # region = config.get('ckanext.s3filestore.region_name')
     host_name = config.get('ckanext.s3filestore.host_name')
-    bucket = upload.get_s3_bucket_strict_test(bucket_name)
-    if filename is None:
-        filename = os.path.basename(rsc['url'])
+    bucket = upload.get_s3_bucket_strict(bucket_name)
+    filename = os.path.basename(rsc['url'])
     key_path = upload.get_path(rsc['id'], filename)
     key = filename
     if key is None:
@@ -102,7 +98,7 @@ def _get_s3_details(filename, rsc):
 def _sign_and_return_s3_get(bucket, host_name, key_path, upload, expiryInSeconds):
     if not expiryInSeconds:
         expiryInSeconds = 60
-    s3 = upload.get_s3_session_test()
+    s3 = upload.get_s3_session()
     print("key path is: {0}".format(key_path))
     client = s3.client(service_name='s3', endpoint_url=host_name)
     url = client.generate_presigned_url(ClientMethod='get_object',
