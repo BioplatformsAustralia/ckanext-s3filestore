@@ -47,12 +47,12 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
 
-
     # What does your project relate to?
     keywords='''CKAN S3 AWS''',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
+    namespace_packages=['ckanext'],
     packages=['ckanext.s3filestore'],
 
     # List run-time dependencies here.  These will be installed by pip when your
@@ -65,8 +65,10 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     include_package_data=True,
+    package_dir={'ckanext.s3filestore': 'ckanext/s3filestore'},
     package_data={
-    },
+        'ckanext.s3filestore': ['fanstatic/*.js', 'fanstatic/styles/*.css', 'templates/*.html', 'templates/*/*.html',
+                                'templates/*/*/*.html']},
 
     # Although 'package_data' is the preferred approach, in some case you may
     # need to place data files outside of your packages.

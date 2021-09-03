@@ -1,6 +1,7 @@
 from routes.mapper import SubMapper
 import ckan.plugins as plugins
 import ckantoolkit as toolkit
+import ckanext.s3filestore.action
 
 import ckanext.s3filestore.uploader
 
@@ -10,11 +11,13 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurable)
     plugins.implements(plugins.IUploader)
     plugins.implements(plugins.IRoutes, inherit=True)
+    plugins.implements(plugins.IActions, inherit=True)
 
     # IConfigurer
 
-    def update_config(self, config_):
-        toolkit.add_template_directory(config_, 'templates')
+    def update_config(self, config):
+        toolkit.add_template_directory(config, 'templates')
+        toolkit.add_resource('fanstatic', 's3filestore')
 
     # IConfigurable
 
@@ -63,9 +66,7 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
             m.connect('resource_download',
                       '/dataset/{id}/resource/{resource_id}/download/{filename}',
                       action='resource_download')
-            m.connect('download_window',
-                      '/dataset/{id}/resource/{resource_id}/downloadwindow',
-                      action='download_window')
+
             # fallback controller action to download from the filesystem
             m.connect('filesystem_resource_download',
                       '/dataset/{id}/resource/{resource_id}/fs_download/{filename}',
@@ -76,3 +77,7 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
                       action='uploaded_file_redirect')
 
         return map
+
+    # IActions
+    def get_actions(self):
+        return {'download_window': ckanext.s3filestore.action.download_window}
