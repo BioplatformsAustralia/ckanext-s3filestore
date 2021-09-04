@@ -1,21 +1,4 @@
 'use strict';
-console.log('testing')
-
-function clickCopyS3URL(e) {
-    alert(e.className);
-    // var copyText = e;
-    // // /* Select the text field */
-    // copyText.select();
-    // copyText.setSelectionRange(0, 99999); /* For mobile devices */
-    // //
-    // // /* Copy the text inside the text field */
-    // navigator.clipboard.writeText(copyText.value);
-    const toCopy = jQuery(e).find('.fa-copy').attr('data-content');
-    alert(toCopy);
-    navigator.clipboard.writeText(toCopy);
-    // /* Alert the copied text */
-    // alert("Copied the text: " + copyText.value);
-}
 
 ckan.module('s3filestore_url_window', function ($) {
     return {
@@ -37,6 +20,10 @@ ckan.module('s3filestore_url_window', function ($) {
                     this.options[key] = value;
                 }
             }
+            if (!this.options["url"]) {
+                this._onReceiveApiSnippetError("ERROR: No url found.");
+            }
+            navigator.clipboard.writeText(this.options["url"]);
             this.sandbox.client.getTemplate('s3filestore_url_window.html',
                 this.options,
                 this._onReceiveHtmlSnippet,
@@ -44,9 +31,7 @@ ckan.module('s3filestore_url_window', function ($) {
             );
         },
         _onReceiveHtmlSnippet: function (html) {
-            // alert($(this.el[0]).closest('div'));
             this._toggleFeedback(html);
-            // this.el[0].innerHTML = html;
         },
         _onReceiveApiSnippetError: function (error) {
             this._onReceiveSnippetError(error, 'Api');
@@ -59,25 +44,18 @@ ckan.module('s3filestore_url_window', function ($) {
             this._toggleFeedback(content);
         },
         _toggleFeedback: function (message) {
-            let element = $(this.el[0]).closest('div')
+            let element = $(this.el[0]).closest('div');
             element.popover('destroy');
-            let title = 'testing';
-            // if (this._snippetReceived) {
-            //     title = 'testing completed';
-            // }
-            // element = $(this.el[0]).closest('.explore').find('.download-window-icon')
-            // element.html(message)
             element.popover({
-                title: "Copy S3 URL",
+                title: "Clipboard Copy",
                 html: true,
                 content: message,
                 placement: 'left'
             });
-            // element.attr('data-trigger', 'click')
             element.popover('show');
-            // $('.popover').one('click', function(){
-            //     element.popover('destroy');
-            // });
+            $('.popover').one('click', function(){
+                element.popover('destroy');
+            });
         }
     };
 });
