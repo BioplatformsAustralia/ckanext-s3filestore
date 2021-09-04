@@ -36,6 +36,7 @@ except ImportError:
 
 @side_effect_free
 def download_window(context, data_dict):
+    print("context is {0}".format(context))
     package_id = data_dict.get("package_id", False)
     resource_id = data_dict.get("resource_id", False)
     if not package_id:
@@ -45,7 +46,7 @@ def download_window(context, data_dict):
     rsc = _get_authorised_resource(context, data_dict)
 
     if rsc.get('url_type') == 'upload':
-        bucket, host_name, key_path, upload = _get_s3_details(rsc)
+        bucket, host_name, key_path, upload, filename = _get_s3_details(rsc)
 
         try:
             # Small workaround to manage downloading of large files
@@ -54,7 +55,7 @@ def download_window(context, data_dict):
             url = _sign_and_return_s3_get(bucket, host_name, key_path, upload, 1800)
             log.info("have signed url: {0}".format(url))
             print("have signed url: {0}".format(url))
-            return url
+            return {"url": url, "filename": filename}
 
         except ClientError as ex:
             log.info('No filesystem fallback are available in this route for resource {0}'
@@ -92,7 +93,7 @@ def _get_s3_details(rsc):
     if key is None:
         log.warn('Key \'{0}\' not found in bucket \'{1}\''
                  .format(key_path, bucket_name))
-    return bucket, host_name, key_path, upload
+    return bucket, host_name, key_path, upload, filename
 
 
 def _sign_and_return_s3_get(bucket, host_name, key_path, upload, expiryInSeconds):

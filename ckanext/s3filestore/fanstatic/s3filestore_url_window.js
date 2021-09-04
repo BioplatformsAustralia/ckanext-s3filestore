@@ -1,6 +1,22 @@
 'use strict';
 console.log('testing')
 
+function clickCopyS3URL(e) {
+    alert(e.className);
+    // var copyText = e;
+    // // /* Select the text field */
+    // copyText.select();
+    // copyText.setSelectionRange(0, 99999); /* For mobile devices */
+    // //
+    // // /* Copy the text inside the text field */
+    // navigator.clipboard.writeText(copyText.value);
+    const toCopy = jQuery(e).find('.fa-copy').attr('data-content');
+    alert(toCopy);
+    navigator.clipboard.writeText(toCopy);
+    // /* Alert the copied text */
+    // alert("Copied the text: " + copyText.value);
+}
+
 ckan.module('s3filestore_url_window', function ($) {
     return {
         _snippetReceived: false,
@@ -17,7 +33,9 @@ ckan.module('s3filestore_url_window', function ($) {
         },
         _onReceiveApiSnippet: function (response) {
             if (response.result) {
-                this.options["result"] = response.result
+                for (const [key, value] of Object.entries(response.result)) {
+                    this.options[key] = value;
+                }
             }
             this.sandbox.client.getTemplate('s3filestore_url_window.html',
                 this.options,
@@ -26,6 +44,7 @@ ckan.module('s3filestore_url_window', function ($) {
             );
         },
         _onReceiveHtmlSnippet: function (html) {
+            // alert($(this.el[0]).closest('div'));
             this._toggleFeedback(html);
             // this.el[0].innerHTML = html;
         },
@@ -40,18 +59,25 @@ ckan.module('s3filestore_url_window', function ($) {
             this._toggleFeedback(content);
         },
         _toggleFeedback: function (message) {
-            this.el.popover('destroy');
+            let element = $(this.el[0]).closest('div')
+            element.popover('destroy');
             let title = 'testing';
-            if (this._snippetReceived) {
-                title = 'testing completed';
-            }
-            this.el.popover({
-                title: title,
+            // if (this._snippetReceived) {
+            //     title = 'testing completed';
+            // }
+            // element = $(this.el[0]).closest('.explore').find('.download-window-icon')
+            // element.html(message)
+            element.popover({
+                title: "Copy S3 URL",
                 html: true,
                 content: message,
                 placement: 'left'
             });
-            this.el.popover('show');
+            // element.attr('data-trigger', 'click')
+            element.popover('show');
+            // $('.popover').one('click', function(){
+            //     element.popover('destroy');
+            // });
         }
     };
 });
