@@ -51,8 +51,8 @@ def download_window(context, data_dict):
         try:
             # Small workaround to manage downloading of large files
             # We are using redirect to minio's resource public URL
-            # Open 30 min window
-            url = _sign_and_return_s3_get(bucket, host_name, key_path, upload, 1800)
+            # Open 10 min window
+            url = _sign_and_return_s3_get(bucket, host_name, key_path, upload, 600)
             log.info("have signed url: {0}".format(url))
             print("have signed url: {0}".format(url))
             return {"url": url, "filename": filename}
