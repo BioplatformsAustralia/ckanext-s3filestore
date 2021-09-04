@@ -30,10 +30,6 @@ except ImportError:
     # CKAN 2.6 and earlier
     from pylons import config
 
-
-# TODO: refactored borrowed logic into new methods: once updates are in PROD and stable consider using new
-#  methods for other functions here
-
 @side_effect_free
 def download_window(context, data_dict):
     print("context is {0}".format(context))
