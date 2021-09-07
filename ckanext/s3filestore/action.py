@@ -40,7 +40,7 @@ def download_window(context, data_dict):
     if not resource_id:
         raise ckan.logic.ValidationError("Missing resource_id")
     rsc = _get_authorised_resource(context, data_dict)
-
+    print("rsc is {0}".format(rsc))
     if rsc.get('url_type') == 'upload':
         bucket, host_name, key_path, upload, filename = _get_s3_details(rsc)
 
@@ -54,14 +54,14 @@ def download_window(context, data_dict):
             return {"url": url, "filename": filename}
 
         except ClientError as ex:
-            log.info('No filesystem fallback are available in this route for resource {0}'
+            log.info('No filesystem fallback available in this route for resource {0}'
                      .format(resource_id))
             if ex.response['Error']['Code'] == 'NoSuchKey':
                 abort(404, _('Resource data not found'))
             else:
                 raise ex
-    elif 'url' not in rsc:
-        abort(404, _('No download is available'))
+    else:
+        raise NotFound
 
 
 def _get_authorised_resource(context, data_dict):

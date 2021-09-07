@@ -40,7 +40,11 @@ ckan.module('s3filestore_url_window', function ($) {
             this._onReceiveSnippetError(error, 'Html');
         },
         _onReceiveSnippetError: function (error, type) {
-            let content = `ERROR (${type}): ${error.status} ${error.statusText}`;
+            let errorMessage = error.statusText;
+            if (error && error.responseJSON) {
+                errorMessage = error.responseJSON.error.message
+            }
+            let content = `ERROR (${type}): ${error.status} ${errorMessage}`;
             this._toggleFeedback(content);
         },
         _toggleFeedback: function (message) {
