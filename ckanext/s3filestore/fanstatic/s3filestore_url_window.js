@@ -45,6 +45,14 @@ ckan.module('s3filestore_url_window', function ($) {
         },
         _toggleFeedback: function (message) {
             let element = $(this.el[0]).closest('div');
+            $(element).on('shown.bs.popover', function () {
+                $('.popover').one('click', function () {
+                    $(this).closest('div').popover('destroy');
+                });
+                setTimeout(function () {
+                    element.popover('destroy');
+                }, 6000);
+            });
             element.popover('destroy');
             element.popover({
                 title: "Clipboard Copy",
@@ -53,9 +61,7 @@ ckan.module('s3filestore_url_window', function ($) {
                 placement: 'left'
             });
             element.popover('show');
-            $('.popover').one('click', function(){
-                element.popover('destroy');
-            });
+
         }
     };
 });
