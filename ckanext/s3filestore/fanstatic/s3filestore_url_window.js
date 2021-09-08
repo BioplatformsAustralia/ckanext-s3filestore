@@ -21,7 +21,7 @@ ckan.module('s3filestore_url_window', function ($) {
                 }
             }
             if (!this.options["url"]) {
-                this._onReceiveApiSnippetError("ERROR: No url found.");
+                this._onReceiveApiSnippetError({statusText: 'No url found', status: '404'});
             }
             navigator.clipboard.writeText(this.options["url"]);
             this.sandbox.client.getTemplate('s3filestore_url_window.html',
@@ -44,7 +44,7 @@ ckan.module('s3filestore_url_window', function ($) {
             if (error && error.responseJSON) {
                 errorMessage = error.responseJSON.error.message
             }
-            let content = `ERROR (${type}): ${error.status} ${errorMessage}`;
+            let content = `ERROR (${type}: ${error.status}) ${errorMessage}`;
             this._toggleFeedback(content);
         },
         _toggleFeedback: function (message) {
@@ -59,7 +59,7 @@ ckan.module('s3filestore_url_window', function ($) {
             });
             element.popover('destroy');
             element.popover({
-                title: "Clipboard Copy",
+                title: "Copied to clipboard!",
                 html: true,
                 content: message,
                 placement: 'left'

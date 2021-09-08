@@ -1,25 +1,16 @@
 # coding: utf8
 
 from __future__ import unicode_literals
+
 import logging
 import os
 
-import ckan.lib.base as base
 import ckan.lib.uploader as uploader
-import ckan.logic
-import ckan.model as model
 from botocore.exceptions import ClientError
 from ckan import authz
-from ckan.common import c
-
-from ckan.logic import side_effect_free
+from ckan.logic import ValidationError, NotFound, NotAuthorized, side_effect_free, get_action
 
 log = logging.getLogger(__name__)
-
-NotFound = ckan.logic.NotFound
-NotAuthorized = ckan.logic.NotAuthorized
-get_action = ckan.logic.get_action
-abort = base.abort
 
 from ckan.common import _
 
@@ -30,38 +21,40 @@ except ImportError:
     # CKAN 2.6 and earlier
     from pylons import config
 
+_default_404_message = 'Resource data not found'
+_default_403_message = 'Unauthorized to read resource'
+
+
 @side_effect_free
 def download_window(context, data_dict):
-    print("context is {0}".format(context))
+    url_window_expiry_in_seconds = 600
     package_id = data_dict.get("package_id", False)
     resource_id = data_dict.get("resource_id", False)
     if not package_id:
-        raise ckan.logic.ValidationError("Missing package_id")
+        raise ValidationError("Missing package_id")
     if not resource_id:
-        raise ckan.logic.ValidationError("Missing resource_id")
+        raise ValidationError("Missing resource_id")
     rsc = _get_authorised_resource(context, data_dict)
-    print("rsc is {0}".format(rsc))
     if rsc.get('url_type') == 'upload':
         bucket, host_name, key_path, upload, filename = _get_s3_details(rsc)
-
         try:
             # Small workaround to manage downloading of large files
             # We are using redirect to minio's resource public URL
             # Open 10 min window
-            url = _sign_and_return_s3_get(bucket, host_name, key_path, upload, 600)
+            url = _sign_and_return_s3_get(bucket, host_name, key_path, upload, url_window_expiry_in_seconds)
             log.info("have signed url: {0}".format(url))
-            print("have signed url: {0}".format(url))
-            return {"url": url, "filename": filename}
-
+            return {"url": url, "filename": filename, "expiry_in_seconds": url_window_expiry_in_seconds}
         except ClientError as ex:
             log.info('No filesystem fallback available in this route for resource {0}'
                      .format(resource_id))
             if ex.response['Error']['Code'] == 'NoSuchKey':
-                abort(404, _('Resource data not found'))
+                raise NotFound(_default_404_message)
             else:
+                log.error("Client error", ex)
                 raise ex
     else:
-        raise NotFound
+        log.error("rsc did not return a url_type of 'upload.")
+        raise NotFound(_default_404_message)
 
 
 def _get_authorised_resource(context, data_dict):
@@ -71,11 +64,11 @@ def _get_authorised_resource(context, data_dict):
         ):
             return get_action('resource_show')(context, {'id': data_dict.get("resource_id", "")})
         else:
-            abort(401, _('Unauthorized to read resource %s') % id)
+            raise NotAuthorized(_default_403_message.format(id))
     except NotFound:
-        abort(404, _('Resource not found'))
+        raise NotFound(_default_404_message)
     except NotAuthorized:
-        abort(401, _('Unauthorized to read resource %s') % id)
+        raise NotAuthorized(_default_403_message.format(id))
 
 
 def _get_s3_details(rsc):
@@ -87,19 +80,19 @@ def _get_s3_details(rsc):
     key_path = upload.get_path(rsc['id'], filename)
     key = filename
     if key is None:
-        log.warn('Key \'{0}\' not found in bucket \'{1}\''
+        log.warn("Key '{0}' not found in bucket '{1}'"
                  .format(key_path, bucket_name))
     return bucket, host_name, key_path, upload, filename
 
 
-def _sign_and_return_s3_get(bucket, host_name, key_path, upload, expiryInSeconds):
-    if not expiryInSeconds:
-        expiryInSeconds = 60
+def _sign_and_return_s3_get(bucket, host_name, key_path, upload, expiry_in_seconds):
+    if not expiry_in_seconds:
+        expiry_in_seconds = 60
     s3 = upload.get_s3_session()
-    print("key path is: {0}".format(key_path))
+    log.debug("key path is: {0}".format(key_path))
     client = s3.client(service_name='s3', endpoint_url=host_name)
     url = client.generate_presigned_url(ClientMethod='get_object',
                                         Params={'Bucket': bucket.name,
                                                 'Key': key_path},
-                                        ExpiresIn=expiryInSeconds)
+                                        ExpiresIn=expiry_in_seconds)
     return url
