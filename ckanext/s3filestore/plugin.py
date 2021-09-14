@@ -1,10 +1,8 @@
-from routes.mapper import SubMapper
 import ckan.plugins as plugins
-import ckantoolkit as toolkit
 import ckanext.s3filestore.action
-
 import ckanext.s3filestore.uploader
-from six import text_type
+import ckantoolkit as toolkit
+from routes.mapper import SubMapper
 
 
 class S3FileStorePlugin(plugins.SingletonPlugin):
@@ -18,6 +16,7 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
 
     def update_config(self, config_):
         toolkit.add_template_directory(config_, 'templates')
+        toolkit.add_resource('fanstatic', 's3filestore')
 
     # IConfigurable
 
