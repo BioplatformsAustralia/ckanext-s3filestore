@@ -12,8 +12,6 @@ from ckan.logic import ValidationError, NotFound, NotAuthorized, side_effect_fre
 
 log = logging.getLogger(__name__)
 
-from ckan.common import _
-
 try:
     # CKAN 2.7 and later
     from ckan.common import config
@@ -27,7 +25,6 @@ _default_403_message = 'Unauthorized to read resource'
 
 @side_effect_free
 def download_window(context, data_dict):
-    url_window_expiry_in_seconds = 600
     package_id = data_dict.get("package_id", False)
     resource_id = data_dict.get("resource_id", False)
     if not package_id:
@@ -40,10 +37,9 @@ def download_window(context, data_dict):
         try:
             # Small workaround to manage downloading of large files
             # We are using redirect to minio's resource public URL
-            # Open 10 min window
-            url = _sign_and_return_s3_get(bucket, host_name, key_path, upload, url_window_expiry_in_seconds)
+            url, expiry_in_seconds = _sign_and_return_s3_get(bucket, host_name, key_path, upload)
             log.info("have signed url: {0}".format(url))
-            return {"url": url, "filename": filename, "expiry_in_seconds": url_window_expiry_in_seconds}
+            return {"url": url, "filename": filename, "expiry_in_seconds": expiry_in_seconds}
         except ClientError as ex:
             log.info('No filesystem fallback available in this route for resource {0}'
                      .format(resource_id))
@@ -75,7 +71,7 @@ def _get_s3_details(rsc):
     upload = uploader.get_resource_uploader(rsc)
     bucket_name = config.get('ckanext.s3filestore.aws_bucket_name')
     host_name = config.get('ckanext.s3filestore.host_name')
-    bucket = upload.get_s3_bucket_strict(bucket_name)
+    bucket = upload.get_limited_s3_bucket(bucket_name)
     filename = os.path.basename(rsc['url'])
     key_path = upload.get_path(rsc['id'], filename)
     key = filename
@@ -85,14 +81,14 @@ def _get_s3_details(rsc):
     return bucket, host_name, key_path, upload, filename
 
 
-def _sign_and_return_s3_get(bucket, host_name, key_path, upload, expiry_in_seconds):
-    if not expiry_in_seconds:
-        expiry_in_seconds = 60
-    s3 = upload.get_s3_session()
+def _sign_and_return_s3_get(bucket, host_name, key_path, upload):
+    expiry_in_seconds = config.get('ckanext.s3filestore.aws_limited_s3_expiry_in_seconds', 60)
+    s3 = upload.get_limited_s3_session()
+
     log.debug("key path is: {0}".format(key_path))
     client = s3.client(service_name='s3', endpoint_url=host_name)
     url = client.generate_presigned_url(ClientMethod='get_object',
                                         Params={'Bucket': bucket.name,
                                                 'Key': key_path},
                                         ExpiresIn=expiry_in_seconds)
-    return url
+    return url, expiry_in_seconds

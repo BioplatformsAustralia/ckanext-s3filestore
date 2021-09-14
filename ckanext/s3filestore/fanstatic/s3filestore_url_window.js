@@ -24,7 +24,7 @@ ckan.module('s3filestore_url_window', function ($) {
                 this._onReceiveApiSnippetError({statusText: 'No url found', status: '404'});
             }
             if (this.options["expiry_in_seconds"]) {
-                this.options["expiry_in_minutes"] = this.options["expiry_in_seconds"]/60
+                this.options["expiry_in_minutes"] = Math.trunc(this.options["expiry_in_seconds"]/60);
             }
             navigator.clipboard.writeText(this.options["url"]);
             this.sandbox.client.getTemplate('s3filestore_url_window.html',

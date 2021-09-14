@@ -56,11 +56,22 @@ class BaseS3Uploader(object):
                                      aws_secret_access_key=self.s_key,
                                      region_name=self.region)
 
-    def get_s3_bucket_strict(self, bucket_name):
-        s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
-                                            config=botocore.client.Config(
-                                                signature_version=self.signature))
+    def get_limited_s3_bucket(self, bucket_name):
+        session = self.get_limited_s3_session()
+        s3 = self.get_strict_s3_bucket(session, bucket_name)
         return s3.Bucket(bucket_name)
+
+    def get_strict_s3_bucket(self, session, bucket_name):
+        s3 = session.resource('s3', endpoint_url=self.host_name,
+                                                    config=botocore.client.Config(
+                                                        signature_version=self.signature))
+        return s3.Bucket(bucket_name)
+
+    def get_limited_s3_session(self):
+        return boto3.session.Session(aws_access_key_id=config.get('ckanext.s3filestore.aws_limited_s3_access_key_id'),
+                                     aws_secret_access_key=config.get(
+                                         'ckanext.s3filestore.aws_limited_s3_secret_access_key'),
+                                     region_name=self.region)
 
     def get_s3_bucket(self, bucket_name):
         '''Return a boto bucket, creating it if it doesn't exist.'''
