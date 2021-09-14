@@ -2,6 +2,7 @@ import ckan.plugins as plugins
 import ckanext.s3filestore.action
 import ckanext.s3filestore.uploader
 import ckantoolkit as toolkit
+from ckan.logic import ValidationError
 from routes.mapper import SubMapper
 
 
