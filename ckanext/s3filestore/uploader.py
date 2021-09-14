@@ -56,15 +56,10 @@ class BaseS3Uploader(object):
                                      aws_secret_access_key=self.s_key,
                                      region_name=self.region)
 
-    def get_limited_s3_bucket(self, bucket_name):
-        session = self.get_limited_s3_session()
-        s3 = self.get_strict_s3_bucket(session, bucket_name)
-        return s3.Bucket(bucket_name)
-
-    def get_strict_s3_bucket(self, session, bucket_name):
-        s3 = session.resource('s3', endpoint_url=self.host_name,
-                                                    config=botocore.client.Config(
-                                                        signature_version=self.signature))
+    def get_strict_s3_bucket(self, bucket_name):
+        s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
+                                            config=botocore.client.Config(
+                                                signature_version=self.signature))
         return s3.Bucket(bucket_name)
 
     def get_limited_s3_session(self):
