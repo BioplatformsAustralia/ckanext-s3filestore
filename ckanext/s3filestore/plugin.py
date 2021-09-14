@@ -1,8 +1,10 @@
 from routes.mapper import SubMapper
 import ckan.plugins as plugins
 import ckantoolkit as toolkit
+import ckanext.s3filestore.action
 
 import ckanext.s3filestore.uploader
+from six import text_type
 
 
 class S3FileStorePlugin(plugins.SingletonPlugin):
@@ -10,6 +12,7 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IConfigurable)
     plugins.implements(plugins.IUploader)
     plugins.implements(plugins.IRoutes, inherit=True)
+    plugins.implements(plugins.IActions, inherit=True)
 
     # IConfigurer
 
@@ -28,18 +31,29 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
             'ckanext.s3filestore.aws_bucket_name',
             'ckanext.s3filestore.region_name',
             'ckanext.s3filestore.signature_version',
-            'ckanext.s3filestore.host_name'
+            'ckanext.s3filestore.host_name',
+            'ckanext.s3filestore.aws_limited_s3_access_key_id',
+            'ckanext.s3filestore.aws_limited_s3_secret_access_key',
+            'ckanext.s3filestore.aws_limited_s3_expiry_in_seconds'
         )
         for option in config_options:
             if not config.get(option, None):
                 raise RuntimeError(missing_config.format(option))
-
         # Check that options actually work, if not exceptions will be raised
         if toolkit.asbool(
                 config.get('ckanext.s3filestore.check_access_on_startup',
                            True)):
             ckanext.s3filestore.uploader.BaseS3Uploader().get_s3_bucket(
                 config.get('ckanext.s3filestore.aws_bucket_name'))
+
+        config_key = 'ckanext.s3filestore.aws_limited_s3_expiry_in_seconds'
+        error_msg = "Config key: {0} must be a positive integer".format(config_key)
+        try:
+            pos_int_value = toolkit.asint((config.get(config_key, 0)))
+            if pos_int_value < 1:
+                raise ValidationError(error_msg)
+        except ValueError:
+            raise ValidationError(error_msg)
 
     # IUploader
 
@@ -74,3 +88,7 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
                       action='uploaded_file_redirect')
 
         return map
+
+    # IActions
+    def get_actions(self):
+        return {'download_window': ckanext.s3filestore.action.download_window}

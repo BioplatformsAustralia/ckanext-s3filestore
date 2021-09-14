@@ -8,12 +8,12 @@ import boto3
 import botocore
 import ckantoolkit as toolkit
 
-
 import ckan.model as model
 import ckan.lib.munge as munge
 
 if toolkit.check_ckan_version(min_version='2.7.0'):
     from werkzeug.datastructures import FileStorage as FlaskFileStorage
+
     ALLOWED_UPLOAD_TYPES = (cgi.FieldStorage, FlaskFileStorage)
 else:
     ALLOWED_UPLOAD_TYPES = (cgi.FieldStorage)
@@ -54,6 +54,18 @@ class BaseS3Uploader(object):
     def get_s3_session(self):
         return boto3.session.Session(aws_access_key_id=self.p_key,
                                      aws_secret_access_key=self.s_key,
+                                     region_name=self.region)
+
+    def get_strict_s3_bucket(self, bucket_name):
+        s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
+                                            config=botocore.client.Config(
+                                                signature_version=self.signature))
+        return s3.Bucket(bucket_name)
+
+    def get_limited_s3_session(self):
+        return boto3.session.Session(aws_access_key_id=config.get('ckanext.s3filestore.aws_limited_s3_access_key_id'),
+                                     aws_secret_access_key=config.get(
+                                         'ckanext.s3filestore.aws_limited_s3_secret_access_key'),
                                      region_name=self.region)
 
     def get_s3_bucket(self, bucket_name):
@@ -139,7 +151,6 @@ class BaseS3Uploader(object):
 
 
 class S3Uploader(BaseS3Uploader):
-
     '''
     An uploader class to replace local file storage with Amazon Web Services
     S3 for general files (e.g. Group cover images).
@@ -224,7 +235,6 @@ class S3Uploader(BaseS3Uploader):
 
 
 class S3ResourceUploader(BaseS3Uploader):
-
     '''
     An uploader class to replace local file storage with Amazon Web Services
     S3 for resource files.
