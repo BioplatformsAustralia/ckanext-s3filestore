@@ -55,16 +55,14 @@ def download_window(context, data_dict):
 
 def _get_authorised_resource(context, data_dict):
     try:
-        if (authz.is_authorized('resource_show', context, data_dict) and
-                authz.is_authorized('package_show', context, data_dict)
-        ):
-            return get_action('resource_show')(context, {'id': data_dict.get("resource_id", "")})
-        else:
-            raise NotAuthorized(_default_403_message.format(id))
+        return get_action('resource_show')(context, {'id': data_dict.get("resource_id", "")})
     except NotFound:
         raise NotFound(_default_404_message)
     except NotAuthorized:
         raise NotAuthorized(_default_403_message.format(id))
+    except Exception as e:
+        # this will send back as 500 error at this layer rather than status from lower level
+        raise Exception(e)
 
 
 def _get_s3_details(rsc):
