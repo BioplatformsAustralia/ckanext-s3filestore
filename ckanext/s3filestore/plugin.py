@@ -91,4 +91,5 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
 
     # IActions
     def get_actions(self):
-        return {'download_window': ckanext.s3filestore.action.download_window}
+        return {'download_window': ckanext.s3filestore.action.download_window,
+                'download_window_send_to_galaxy': ckanext.s3filestore.action.download_window_send_to_galaxy }

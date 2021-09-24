@@ -9,6 +9,7 @@ import ckan.lib.uploader as uploader
 from botocore.exceptions import ClientError
 from ckan import authz
 from ckan.logic import ValidationError, NotFound, NotAuthorized, side_effect_free, get_action
+import ckanext.bpatogalaxy.plugin as bpatogalaxy
 
 log = logging.getLogger(__name__)
 
@@ -25,6 +26,9 @@ _default_403_message = 'Unauthorized to read resource'
 
 @side_effect_free
 def download_window(context, data_dict):
+    return _download_window(context, data_dict)
+
+def _download_window(context, data_dict):
     package_id = data_dict.get("package_id", False)
     resource_id = data_dict.get("resource_id", False)
     if not package_id:
@@ -92,3 +96,12 @@ def _sign_and_return_s3_get(bucket, host_name, key_path, upload):
                                                 'Key': key_path},
                                         ExpiresIn=expiry_in_seconds)
     return url, expiry_in_seconds
+
+
+@side_effect_free
+def download_window_send_to_galaxy(context, data_dict):
+    result = _download_window(context, data_dict)
+    bpatogalaxy.send_temp_presigned_url_to_galaxy(result['url'])
+    return result
+
+
