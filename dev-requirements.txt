@@ -1,4 +1,9 @@
-moto==0.4.4
-ckanapi==3.5
-# a more recent httpretty is installed with moto, but has bugs causing BadStatusLine errors (https://github.com/spulec/moto/issues/303), so install a working version
-httpretty==0.6.2 
+moto==2.0.1
+ckanapi==4.3
+
+#1.0.2 is python3 only
+httpretty==0.9.7
+parameterized==0.8.1
+pytest-cov
+pytest-ckan
+six>=1.13.0

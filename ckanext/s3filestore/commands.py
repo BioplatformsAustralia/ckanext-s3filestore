@@ -1,17 +1,39 @@
+# encoding: utf-8
+
 import sys
-import boto
-from ckantoolkit import config
-import ckantoolkit as toolkit
+
+from ckan.plugins import toolkit
+
+from cli_commands import S3FilestoreCommands
 
 
-class TestConnection(toolkit.CkanCommand):
+class TestConnection(toolkit.CkanCommand, S3FilestoreCommands):
     '''CKAN S3 FileStore utilities
 
     Usage:
 
-        paster s3 check-config
+        s3 update-all-visibility
+
+            Updates the visibility of all existing S3 objects to match current config
+
+        s3 check-config
 
             Checks if the configuration entered in the ini file is correct
+
+        s3 upload [pairtree|<id>|all]
+
+            Uploads existing files from disk to S3.
+
+            If 'all' is specified, this will scan for files on disk and
+            attempt to upload each one to the matching resource.
+
+            If 'pairtree' is specified, this attempts to upload items from
+            the legacy 'Pairtree' storage. NB Selecting 'all' will not
+            attempt to load from Pairtree.
+
+            Otherwise, if a UUID is specified, this will attempt to
+            upload the matching resource or all resources in the
+            matching package.
 
     '''
     summary = __doc__.split('\n')[0]
@@ -19,40 +41,20 @@ class TestConnection(toolkit.CkanCommand):
     min_args = 1
 
     def command(self):
-        self._load_config()
         if not self.args:
-            print self.usage
-        elif self.args[0] == 'check-config':
-            self.check_config()
-
-    def check_config(self):
-        exit = False
-        for key in ('ckanext.s3filestore.aws_access_key_id',
-                    'ckanext.s3filestore.aws_secret_access_key',
-                    'ckanext.s3filestore.aws_bucket_name'):
-            if not config.get(key):
-                print 'You must set the "{0}" option in your ini file'.format(
-                    key)
-                exit = True
-        if exit:
+            print(self.usage)
             sys.exit(1)
-
-        print 'All configuration options defined'
-        bucket_name = config.get('ckanext.s3filestore.aws_bucket_name')
-        public_key = config.get('ckanext.s3filestore.aws_access_key_id')
-        secret_key = config.get('ckanext.s3filestore.aws_secret_access_key')
-
-        S3_conn = boto.connect_s3(public_key, secret_key)
-
-        # Check if bucket exists
-        bucket = S3_conn.lookup(bucket_name)
-        if bucket is None:
-            print 'Bucket {0} does not exist, trying to create it...'.format(
-                bucket_name)
-            try:
-                bucket = S3_conn.create_bucket(bucket_name)
-            except boto.exception.StandardError as e:
-                print 'An error was found while creating the bucket:'
-                print str(e)
-                sys.exit(1)
-        print 'Configuration OK!'
+        self._load_config()
+        if self.args[0] == 'check-config':
+            self.check_config()
+        elif self.args[0] == 'update-all-visibility':
+            self.update_all_visibility()
+        elif self.args[0] == 'upload':
+            if len(self.args) < 2 or self.args[1] == 'all':
+                self.upload_all()
+            elif self.args[1] == 'pairtree':
+                self.upload_pairtree()
+            else:
+                self.upload_single(self.args[1])
+        else:
+            self.parser.error('Unrecognized command')

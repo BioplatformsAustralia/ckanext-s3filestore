@@ -38,6 +38,12 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
+.idea
+
 # Sphinx documentation
 docs/_build/
+
+subdir/
+
+# MacOS nonsense
 .DS_Store
