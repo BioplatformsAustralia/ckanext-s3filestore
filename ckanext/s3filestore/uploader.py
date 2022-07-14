@@ -96,6 +96,19 @@ def get_s3_session(config):
                                  region_name=region)
 
 
+def get_limited_s3_session(config):
+    if config.get('ckanext.s3filestore.aws_use_ami_role', False):
+        p_key = None
+        s_key = None
+    else:
+        p_key = config.get('ckanext.s3filestore.aws_limited_s3_access_key_id')
+        s_key = config.get('ckanext.s3filestore.aws_limited_s3_secret_access_key')
+    region = config.get('ckanext.s3filestore.region_name')
+    return boto3.session.Session(aws_access_key_id=p_key,
+                                 aws_secret_access_key=s_key,
+                                 region_name=region)
+
+
 def _is_presigned_url(url):
     ''' Determines whether a URL represents a presigned S3 URL.'''
     parts = url.split('?')
@@ -126,26 +139,14 @@ class BaseS3Uploader(object):
         directory = os.path.join(storage_path, id)
         return directory
 
-<<<<<<< HEAD
-    def get_s3_session(self):
-        return boto3.session.Session(aws_access_key_id=self.p_key,
-                                     aws_secret_access_key=self.s_key,
-                                     region_name=self.region)
-
     def get_strict_s3_bucket(self, bucket_name):
-        s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
-                                            config=botocore.client.Config(
-                                                signature_version=self.signature))
+        s3 = get_s3_session(config).resource('s3', endpoint_url=self.host_name,
+                                            config=self._get_s3_config())
         return s3.Bucket(bucket_name)
 
     def get_limited_s3_session(self):
-        return boto3.session.Session(aws_access_key_id=config.get('ckanext.s3filestore.aws_limited_s3_access_key_id'),
-                                     aws_secret_access_key=config.get(
-                                         'ckanext.s3filestore.aws_limited_s3_secret_access_key'),
-                                     region_name=self.region)
+        return get_limited_s3_session(config)
 
-    def get_s3_bucket(self, bucket_name):
-=======
     def _get_s3_config(self):
         return Config(
             signature_version=self.signature,
@@ -167,7 +168,6 @@ class BaseS3Uploader(object):
                               config=self._get_s3_config())
 
     def get_s3_bucket(self, bucket_name=None):
->>>>>>> qld-gov-au/master
         '''Return a boto bucket, creating it if it doesn't exist.'''
 
         if not bucket_name:
@@ -176,12 +176,6 @@ class BaseS3Uploader(object):
         # make s3 connection using boto3
         s3 = self.get_s3_resource()
 
-<<<<<<< HEAD
-        s3 = self.get_s3_session().resource('s3', endpoint_url=self.host_name,
-                                            config=botocore.client.Config(
-                                                signature_version=self.signature))
-=======
->>>>>>> qld-gov-au/master
         bucket = s3.Bucket(bucket_name)
         try:
             s3.meta.client.head_bucket(Bucket=bucket_name)
@@ -219,16 +213,6 @@ class BaseS3Uploader(object):
             filepath, self.bucket_name, acl, mime_type)
 
         try:
-<<<<<<< HEAD
-            # streaming, parallel, multi-part upload
-            extra_args = {}
-            extra_args['ACL'] = 'public-read'
-            extra_args['ContentType'] = getattr(self, 'mimetype', None)
-            self.bucket.upload_fileobj(
-                upload_file, filepath, ExtraArgs=extra_args)
-
-            log.info("Succesfully uploaded {0} to S3!".format(filepath))
-=======
             kwargs = {
                 'Body': upload_file.read(), 'ACL': acl,
                 'ContentType': mime_type}
@@ -243,21 +227,12 @@ class BaseS3Uploader(object):
             self.redis.delete(filepath)
             self.redis.delete(filepath + VISIBILITY_CACHE_PATH + '/all')
             self.redis.put(filepath + VISIBILITY_CACHE_PATH, acl, expiry=self.acl_cache_window)
->>>>>>> qld-gov-au/master
         except Exception as e:
             log.error('Something went very very wrong when uploading to [%s]: %s', filepath, e)
             raise e
 
     def clear_key(self, filepath):
         '''Deletes the contents of the key at `filepath` on `self.bucket`.'''
-<<<<<<< HEAD
-        session = boto3.session.Session(aws_access_key_id=self.p_key,
-                                        aws_secret_access_key=self.s_key,
-                                        region_name=self.region)
-        s3 = session.resource('s3', endpoint_url=self.host_name, config=botocore.client.Config(
-            signature_version=self.signature))
-=======
->>>>>>> qld-gov-au/master
         try:
             self.get_s3_resource().Object(self.bucket_name, filepath).delete()
             log.info("Removed %s from S3", filepath)
@@ -587,10 +562,6 @@ class S3ResourceUploader(BaseS3Uploader):
             self.mimetype = resource.get('mimetype')
             if not self.mimetype:
                 try:
-<<<<<<< HEAD
-                    self.mimetype = resource['mimetype'] = mimetypes.guess_type(
-                        self.filename, strict=False)[0]
-=======
                     # 512 bytes should be enough for a mimetype check
                     self.mimetype = resource['mimetype'] = mime.from_buffer(self.upload_file.read(512))
 
@@ -601,7 +572,6 @@ class S3ResourceUploader(BaseS3Uploader):
                             mimetypes.guess_type(self.filename, strict=False)[0] or 'text/plain'
                     # go back to the beginning of the file buffer
                     self.upload_file.seek(0, os.SEEK_SET)
->>>>>>> qld-gov-au/master
                 except Exception:
                     pass
         elif self.clear and resource.get('id'):
