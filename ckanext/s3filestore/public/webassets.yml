@@ -1,0 +1,8 @@
+s3filestore_js:
+  output: ckanext-ytp_s3filestore%(version)s_s3filestore.js
+  filters: rjsmin
+  extra:
+    preload:
+      - base/main
+  contents:
+    - javascript/s3filestore.js
