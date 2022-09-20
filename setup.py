@@ -15,7 +15,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # http://packaging.python.org/en/latest/tutorial.html#version
-    version='1.0.0-bioplatforms4',
+    version='1.0.0-bioplatforms7',
 
     description='''Host resource files using Amazon Web Service's S3 storage''',
     long_description=long_description,
@@ -53,7 +53,7 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     namespace_packages=['ckanext'],
-    packages=['ckanext.s3filestore'],
+    packages=['ckanext.s3filestore', 'ckanext.s3filestore.views'],
 
     # List run-time dependencies here.  These will be installed by pip when your
     # project is installed. For an analysis of "install_requires" vs pip's
