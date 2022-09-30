@@ -1,0 +1,7 @@
+{% ckan_extends %}
+
+{%- block scripts %}
+  {{ super() }}
+  {% asset 's3filestore_js/s3filestore_js' %}
+{% endblock -%}
+
