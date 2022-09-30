@@ -40,6 +40,7 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
         # to fix downloading the HTML file instead of previewing when
         # 'webpage_view' is enabled
         toolkit.add_template_directory(config_, 'theme/templates')
+        toolkit.add_resource('public', 's3filestore_js')
 
     # IConfigurable
 
