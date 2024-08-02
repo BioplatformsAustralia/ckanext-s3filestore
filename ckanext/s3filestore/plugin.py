@@ -8,8 +8,8 @@ from ckan.logic import ValidationError
 import ckantoolkit as toolkit
 from ckanext.s3filestore import uploader as s3_uploader
 from ckanext.s3filestore import action
-from ckan.lib.uploader import ResourceUpload as DefaultResourceUpload,\
-    get_resource_uploader
+from ckan.lib.uploader import get_resource_uploader, \
+    ResourceUpload as DefaultResourceUpload
 
 import ckanext.s3filestore.tasks as tasks
 
@@ -96,7 +96,12 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
 
     # IPackageController
 
+    # CKAN < 2.10
     def after_update(self, context, pkg_dict):
+        return self.after_dataset_update(context, pkg_dict)
+
+    # CKAN >= 2.10
+    def after_dataset_update(self, context, pkg_dict):
         ''' Update the access of each S3 object to match the package.
         '''
         pkg_id = pkg_dict['id']
@@ -172,8 +177,9 @@ class S3FileStorePlugin(plugins.SingletonPlugin):
         from routes.mapper import SubMapper
 
         with SubMapper(map, controller='ckanext.s3filestore.controller:S3Controller') as m:
-            # Override the resource download links
+            # IUploader interface does not handle download, like qgov version does, override core ckan controllers
             if not hasattr(DefaultResourceUpload, 'download'):
+                # Override the resource download links
                 m.connect('s3_resource.resource_download',
                           '/dataset/{id}/resource/{resource_id}/download',
                           action='resource_download')

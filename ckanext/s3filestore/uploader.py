@@ -1,6 +1,5 @@
 # encoding: utf-8
 
-import cgi
 import datetime
 import errno
 import logging
@@ -26,12 +25,15 @@ from ckan.plugins.toolkit import g
 
 from ckanext.s3filestore.redis_helper import RedisHelper
 
-if toolkit.check_ckan_version(min_version='2.7.0'):
-    from werkzeug.datastructures import FileStorage as FlaskFileStorage
-
-    ALLOWED_UPLOAD_TYPES = (cgi.FieldStorage, FlaskFileStorage)
+if toolkit.check_ckan_version(min_version='2.8'):
+    from ckan.lib.uploader import ALLOWED_UPLOAD_TYPES
 else:
-    ALLOWED_UPLOAD_TYPES = (cgi.FieldStorage)
+    from cgi import FieldStorage
+    if toolkit.check_ckan_version(min_version='2.7.0'):
+        from werkzeug.datastructures import FileStorage as FlaskFileStorage
+        ALLOWED_UPLOAD_TYPES = (FieldStorage, FlaskFileStorage)
+    else:
+        ALLOWED_UPLOAD_TYPES = (FieldStorage)
 
 config = toolkit.config
 log = logging.getLogger(__name__)
@@ -47,20 +49,9 @@ PRIVATE_ACL = 'private'
 
 
 def _get_underlying_file(wrapper):
-    if isinstance(wrapper, FlaskFileStorage):
+    if hasattr(wrapper, 'stream'):
         return wrapper.stream
     return wrapper.file
-
-
-def is_path_addressing():
-    if config.get('ckanext.s3filestore.download_proxy'):
-        return False
-    configured_style = config.get('ckanext.s3filestore.addressing_style', 'auto')
-    if configured_style == 'path':
-        return True
-    if configured_style == 'auto':
-        return config.get('ckanext.s3filestore.signature_version') == 's3v4'
-    return False
 
 
 def ensure_ascii(text):
@@ -129,14 +120,15 @@ class BaseS3Uploader(object):
         self.acl = config.get('ckanext.s3filestore.acl', PUBLIC_ACL)
         self.non_current_acl = config.get('ckanext.s3filestore.non_current_acl', PRIVATE_ACL)
         self.addressing_style = config.get('ckanext.s3filestore.addressing_style', 'auto')
-        if is_path_addressing():
-            self.host_name = config.get('ckanext.s3filestore.host_name')
-        else:
-            self.host_name = None
+        # Fall back to standard endpoint if not specified.
+        # NB Boto will automatically add bucket name and key to the endpoint,
+        # according to the addressing style in use.
+        self.host_name = config.get('ckanext.s3filestore.host_name',
+                                    'https://s3.{}.amazonaws.com'.format(self.region))
         self.redis = RedisHelper()
 
     def get_directory(self, id, storage_path):
-        directory = os.path.join(storage_path, id)
+        directory = os.path.join(storage_path, munge.munge_filename(id))
         return directory
 
     def get_strict_s3_bucket(self, bucket_name):
@@ -288,6 +280,8 @@ class BaseS3Uploader(object):
         try:
             metadata = client.head_object(Bucket=self.bucket_name, Key=key)
         except ClientError:
+            log.warning("Key '%s' not found in bucket '%s'",
+                        key, self.bucket_name)
             raise toolkit.ObjectNotFound("Unable to retrieve metadata for object [{}]".format(key))
 
         # check whether the object is publicly readable
@@ -358,8 +352,6 @@ class S3Uploader(BaseS3Uploader):
         return os.path.join(path, 'storage', 'uploads', upload_to)
 
     def update_data_dict(self, data_dict, url_field, file_field, clear_field):
-        log.debug("ckanext.s3filestore.uploader: update_data_dic: %s, url %s, file %s, clear %s",
-                  data_dict, url_field, file_field, clear_field)
         '''Manipulate data from the data_dict. This needs to be called before it
         reaches any validators.
 
@@ -386,7 +378,7 @@ class S3Uploader(BaseS3Uploader):
             self.filename = self.upload_field_storage.filename
             if not self.preserve_filename:
                 self.filename = str(datetime.datetime.utcnow()) + self.filename
-            self.filename = munge.munge_filename_legacy(self.filename)
+            self.filename = munge.munge_filename(self.filename)
             self.filepath = os.path.join(self.storage_path, self.filename)
             if hasattr(self.upload_field_storage, 'mimetype'):
                 self.mimetype = self.upload_field_storage.mimetype
@@ -397,8 +389,8 @@ class S3Uploader(BaseS3Uploader):
                     pass
             data_dict[url_field] = self.filename
             self.upload_file = _get_underlying_file(self.upload_field_storage)
-            log.debug("ckanext.s3filestore.uploader: is allowed upload type: filename: %s, upload_file: %s, data_dict: %s",
-                      self.filename, self.upload_file, data_dict)
+            log.debug("ckanext.s3filestore.uploader: is allowed upload type: filename: %s, upload_file: %s",
+                      self.filename, self.upload_file)
         # keep the file if there has been no change
         elif self.old_filename and not self.old_filename.startswith('http'):
             if not self.clear:
@@ -407,8 +399,8 @@ class S3Uploader(BaseS3Uploader):
                 data_dict[url_field] = ''
         else:
             log.debug(
-                "ckanext.s3filestore.uploader: is not allowed upload type: filename: %s, upload_file: %s, data_dict: %s",
-                self.filename, self.upload_file, data_dict)
+                "ckanext.s3filestore.uploader: is not allowed upload type: upload_field_storage: %s",
+                self.upload_field_storage)
 
     def upload(self, max_size=2):
         log.debug(
@@ -433,7 +425,7 @@ class S3Uploader(BaseS3Uploader):
 
     def delete(self, filename):
         ''' Delete file we are pointing at'''
-        filename = munge.munge_filename_legacy(filename)
+        filename = munge.munge_filename(filename)
         key_path = os.path.join(self.storage_path, filename)
         try:
             self.clear_key(key_path)
@@ -448,7 +440,7 @@ class S3Uploader(BaseS3Uploader):
         downloading the uploaded file from S3.
         '''
 
-        filename = munge.munge_filename_legacy(filename)
+        filename = munge.munge_filename(filename)
         key = os.path.join(self.storage_path, filename)
 
         if filename is None:
@@ -457,13 +449,13 @@ class S3Uploader(BaseS3Uploader):
 
         try:
             url = self.get_signed_url_to_key(key)
-            h.redirect_to(url)
+            return h.redirect_to(url)
         except ClientError as ex:
             if ex.response['Error']['Code'] in ['NoSuchKey', '404']:
                 if config.get(
                         'ckanext.s3filestore.filesystem_download_fallback',
                         False):
-                    log.info('Attempting filesystem fallback for resource %s', id)
+                    log.info('Attempting filesystem fallback for resource %s', filename)
                     default_upload = DefaultUpload(self.upload_to)
                     return default_upload.download(filename)
 
@@ -476,7 +468,7 @@ class S3Uploader(BaseS3Uploader):
         Returns a dict that includes 'ContentType', 'ContentLength', 'Hash', and 'LastModified',
         and may include other keys depending on the implementation.
         '''
-        filename = munge.munge_filename_legacy(filename)
+        filename = munge.munge_filename(filename)
         key_path = os.path.join(self.storage_path, filename)
 
         if filename is None:
@@ -496,7 +488,7 @@ class S3Uploader(BaseS3Uploader):
                 if config.get(
                         'ckanext.s3filestore.filesystem_download_fallback',
                         False):
-                    log.info('Attempting filesystem fallback for resource %s', id)
+                    log.info('Attempting filesystem fallback for resource %s', filename)
 
                     default_upload = DefaultUpload(self.upload_to)
                     return default_upload.metadata(filename)
@@ -562,8 +554,18 @@ class S3ResourceUploader(BaseS3Uploader):
             self.mimetype = resource.get('mimetype')
             if not self.mimetype:
                 try:
-                    # 512 bytes should be enough for a mimetype check
-                    self.mimetype = resource['mimetype'] = mime.from_buffer(self.upload_file.read(512))
+                    try:
+                        # Get type from file extension if we recognise it
+                        self.mimetype = mimetypes.guess_type(self.filename, strict=False)[0]
+                    except Exception:
+                        pass
+                    if not self.mimetype:
+                        try:
+                            # 2048 bytes are needed to detect Office docs
+                            self.mimetype = mime.from_buffer(self.upload_file.read(2048))
+                        except Exception:
+                            pass
+                    resource['mimetype'] = self.mimetype
 
                     # additional check on text/plain mimetypes for
                     # more reliable result, if None continue with text/plain
@@ -662,6 +664,7 @@ class S3ResourceUploader(BaseS3Uploader):
                 log.debug("Updating ACL for object %s to %s", upload_key, acl)
                 client.put_object_acl(
                     Bucket=self.bucket_name, Key=upload_key, ACL=acl)
+                # Drop the cached URL since it will likely need to change
                 self.redis.delete(upload_key)
                 self.redis.put(upload_key + VISIBILITY_CACHE_PATH, acl, expiry=self.acl_cache_window)
         self.redis.put(current_key + VISIBILITY_CACHE_PATH + '/all', target_acl, expiry=self.acl_cache_window)
@@ -675,7 +678,7 @@ class S3ResourceUploader(BaseS3Uploader):
             filepath = self.get_path(id, self.filename)
             self.upload_to_key(filepath, self.upload_file, acl=self._get_target_acl(id),
                                extra_metadata=self._get_resource_metadata())
-        self.update_visibility(id)
+            self.update_visibility(id)
 
         # The resource form only sets self.clear (via the input clear_upload)
         # to True when an uploaded file is not replaced by another uploaded
@@ -730,15 +733,27 @@ class S3ResourceUploader(BaseS3Uploader):
 
         try:
             url = self.get_signed_url_to_key(key_path)
-            h.redirect_to(url)
+            return h.redirect_to(url)
         except ClientError as ex:
             if ex.response['Error']['Code'] in ['NoSuchKey', '404']:
                 # attempt fallback
-                default_resource_upload = DefaultResourceUpload(self.resource)
-                return default_resource_upload.download(id, self.filename)
-            else:
-                # Controller will raise 404 for us
-                raise OSError(errno.ENOENT)
+                if config.get(
+                        'ckanext.s3filestore.filesystem_download_fallback',
+                        False):
+                    log.info('Attempting filesystem fallback for resource %s',
+                             id)
+                    url = h.url_for(
+                        u's3_resource.filesystem_resource_download',
+                        id=id,
+                        resource_id=id,
+                        filename=filename)
+                    return h.redirect_to(url)
+
+            # else:
+            #     # Controller will raise 404 for us
+            log.info('Exception raised id: %s key_path: %s',
+                     id, key_path, ex)
+            raise OSError(errno.ENOENT)
 
     def metadata(self, id, filename=None):
         if filename is None:
