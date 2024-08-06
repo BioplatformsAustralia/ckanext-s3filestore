@@ -8,7 +8,9 @@ import os
 import ckan.lib.uploader as uploader
 from botocore.exceptions import ClientError
 from ckan import authz
-from ckan.logic import ValidationError, NotFound, NotAuthorized, side_effect_free, get_action
+from ckan.logic import NotFound, NotAuthorized, side_effect_free, get_action, validate
+
+from .logic import schema
 
 log = logging.getLogger(__name__)
 
@@ -22,15 +24,9 @@ except ImportError:
 _default_404_message = 'Resource data not found'
 _default_403_message = 'Unauthorized to read resource'
 
-
+@validate(schema.s3filestore_download_window)
 @side_effect_free
 def download_window(context, data_dict):
-    package_id = data_dict.get("package_id", False)
-    resource_id = data_dict.get("resource_id", False)
-    if not package_id:
-        raise ValidationError("Missing package_id")
-    if not resource_id:
-        raise ValidationError("Missing resource_id")
     rsc = _get_authorised_resource(context, data_dict)
     if rsc.get('url_type') == 'upload':
         bucket, host_name, key_path, upload, filename = _get_s3_details(rsc)
