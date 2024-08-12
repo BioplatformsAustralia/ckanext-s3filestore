@@ -27,11 +27,19 @@ ckan.module('s3filestore_url_window', function ($) {
                 this.options["expiry_in_minutes"] = Math.trunc(this.options["expiry_in_seconds"]/60);
             }
             navigator.clipboard.writeText(this.options["url"]);
-            this.sandbox.client.getTemplate('s3filestore_url_window.html',
-                this.options,
-                this._onReceiveHtmlSnippet,
-                this._onReceiveHtmlSnippetError
-            );
+            if (this.options["local"]) {
+                this.sandbox.client.getTemplate('s3filestore_url_window.html',
+                    this.options,
+                    this._onReceiveHtmlSnippet,
+                    this._onReceiveHtmlSnippetError
+                );
+            } else {
+                this.sandbox.client.getTemplate('s3filestore_remote_url_window.html',
+                    this.options,
+                    this._onReceiveHtmlSnippet,
+                    this._onReceiveHtmlSnippetError
+                );
+            };
         },
         _onReceiveHtmlSnippet: function (html) {
             this._toggleFeedback(html);
