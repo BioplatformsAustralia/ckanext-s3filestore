@@ -91,8 +91,8 @@ def download_window(context, data_dict):
 
     if rsc.get("url_type") == "upload":
         # Sanity check - if url_type is upload, must match packages
-        dd_id = converters.convert_package_name_or_id_to_id(data_dict.get("package_id"))
-        pr_id = converters.convert_package_name_or_id_to_id(matched_url.get("id"))
+        dd_id = converters.convert_package_name_or_id_to_id(data_dict.get("package_id"), context)
+        pr_id = converters.convert_package_name_or_id_to_id(matched_url.get("id"), context)
 
         if dd_id != pr_id:
             log.error(
