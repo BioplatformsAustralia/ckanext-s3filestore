@@ -15,7 +15,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # http://packaging.python.org/en/latest/tutorial.html#version
-    version='1.0.0+bioplatforms15',
+    version='1.1.0+bioplatforms1',
 
     description='''Host resource files using Amazon Web Service's S3 storage''',
     long_description=long_description,
